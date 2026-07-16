@@ -19,6 +19,7 @@ export default function MemeEditor({ template, onBack }) {
   const [activeIndex, setActiveIndex] = useState(null)
   const [activeMood,  setActiveMood]  = useState('')
   const [toast,       setToast]       = useState(null)
+  const [sharing,     setSharing]     = useState(false)
 
   const MOODS = [
     '😂 Funny', '😈 Dark', '🤓 Nerdy',
@@ -38,7 +39,7 @@ export default function MemeEditor({ template, onBack }) {
   useEffect(() => { onBackRef.current     = onBack      }, [onBack])
   useEffect(() => { templateRef.current   = template    }, [template])
 
-  // Show a toast message
+  // Show toast message
   const showToast = (message) => {
     setToast(message)
     setTimeout(() => setToast(null), 2500)
@@ -59,7 +60,7 @@ export default function MemeEditor({ template, onBack }) {
       setIdeas(result)
       setAiDone(true)
     } catch (err) {
-      setAiError('Could not get AI ideas. Please try again.')
+      setAiError('AI said nah 💀 try again bestie')
     } finally {
       setAiLoading(false)
     }
@@ -76,15 +77,68 @@ export default function MemeEditor({ template, onBack }) {
     setActiveIndex(index)
   }
 
-  // Download AND save to gallery
+  // Download + save to gallery
   const handleDownload = () => {
     if (!canvasRef.current) return
     downloadMeme(canvasRef.current, `${template.name}.png`)
     const saved = saveMemeToGallery(canvasRef.current, template.name)
     if (saved) {
-      showToast('✅ MEME SAVED TO GALLERY!')
+      showToast('✅ meme saved to gallery no cap!')
     } else {
-      showToast('⬇️ MEME DOWNLOADED!')
+      showToast('⬇️ meme downloaded bestie!')
+    }
+  }
+
+  // Share button
+  const handleShare = async () => {
+    if (!canvasRef.current) return
+    setSharing(true)
+
+    try {
+      // Convert canvas to blob
+      const blob = await new Promise(resolve =>
+        canvasRef.current.toBlob(resolve, 'image/png')
+      )
+
+      const file = new File([blob], `${template.name}-meme.png`, {
+        type: 'image/png'
+      })
+
+      // Check if Web Share API supports files
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'Check out this meme! 😂',
+          text:  `Made with Meme Machine 🐕 — ${template.name}`,
+          files: [file],
+        })
+        showToast('🚀 meme shared fr fr!')
+      } else if (navigator.share) {
+        // Share without file (just text + title)
+        await navigator.share({
+          title: 'Check out this meme! 😂',
+          text:  `Made with Meme Machine 🐕 — ${template.name}`,
+        })
+        showToast('🚀 meme shared!')
+      } else {
+        // Fallback — copy image to clipboard
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ])
+        showToast('📋 meme copied to clipboard bestie!')
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        // Last resort — copy data url as text
+        try {
+          const dataUrl = canvasRef.current.toDataURL('image/png')
+          await navigator.clipboard.writeText(dataUrl)
+          showToast('📋 meme link copied!')
+        } catch {
+          showToast('😭 share failed bestie. try download instead')
+        }
+      }
+    } finally {
+      setSharing(false)
     }
   }
 
@@ -114,14 +168,16 @@ export default function MemeEditor({ template, onBack }) {
   return (
     <div className="editor">
 
-      {/* Toast notification */}
+      {/* Toast */}
       {toast && (
         <div className="toast toast--show">{toast}</div>
       )}
 
       {/* Top bar */}
       <div className="editor-topbar">
-        <button className="back-btn" onClick={onBack}>← BACK</button>
+        <button className="back-btn" onClick={onBack}>
+          ← nah go back
+        </button>
         <h2 className="editor-title">{template.name}</h2>
         <div className="editor-shortcuts">
           <span className="shortcut-tag">ESC</span>
@@ -134,15 +190,34 @@ export default function MemeEditor({ template, onBack }) {
       <div className="editor-layout">
 
         {/* Left — canvas */}
-        <MemeCanvas
-          template={template}
-          topText={topText}
-          bottomText={bottomText}
-          fontSize={fontSize}
-          color={color}
-          font={font}
-          canvasRef={canvasRef}
-        />
+        <div className="canvas-col">
+          <MemeCanvas
+            template={template}
+            topText={topText}
+            bottomText={bottomText}
+            fontSize={fontSize}
+            color={color}
+            font={font}
+            canvasRef={canvasRef}
+          />
+
+          {/* Share + Download buttons below canvas */}
+          <div className="canvas-actions">
+            <button
+              className="share-btn"
+              onClick={handleShare}
+              disabled={sharing}
+            >
+              {sharing ? '⏳ sharing...' : '🚀 share this meme fr'}
+            </button>
+            <button
+              className="download-btn download-btn--small"
+              onClick={handleDownload}
+            >
+              ⬇️ download + save
+            </button>
+          </div>
+        </div>
 
         {/* Right — controls */}
         <div className="controls-panel">
@@ -151,11 +226,11 @@ export default function MemeEditor({ template, onBack }) {
           <div className="ai-section">
             <div className="ai-section-header">
               <span className="ai-section-title">🤖 AI Meme Ideas</span>
-              <span className="ai-badge">POWERED BY AI</span>
+              <span className="ai-badge">no cap</span>
             </div>
 
             <div className="mood-selector">
-              <span className="mood-label">Choose a vibe</span>
+              <span className="mood-label">pick ur vibe bestie</span>
               <div className="mood-pills">
                 {MOODS.map(mood => (
                   <button
@@ -172,7 +247,7 @@ export default function MemeEditor({ template, onBack }) {
             <input
               type="text"
               className="ai-prompt-input"
-              placeholder="e.g. programming jokes, dark humor..."
+              placeholder="e.g. make it bussin, dark humor, college life..."
               value={userPrompt}
               onChange={e => setUserPrompt(e.target.value)}
               onKeyDown={e => {
@@ -189,10 +264,10 @@ export default function MemeEditor({ template, onBack }) {
               disabled={aiLoading}
             >
               {aiLoading
-                ? '⏳ GENERATING...'
+                ? '⏳ AI is cooking fr fr...'
                 : aiDone
-                  ? '🔄 REGENERATE IDEAS'
-                  : '✨ GET AI MEME IDEAS'
+                  ? '🔄 cook up more ideas no cap'
+                  : '✨ get AI meme ideas bestie'
               }
             </button>
 
@@ -203,7 +278,7 @@ export default function MemeEditor({ template, onBack }) {
                   className="retry-btn"
                   onClick={() => handleGetIdeas()}
                 >
-                  RETRY
+                  retry fr
                 </button>
               </div>
             )}
@@ -218,25 +293,27 @@ export default function MemeEditor({ template, onBack }) {
 
           {/* Caption Section */}
           <div className="section-card">
-            <p className="section-card-title">✏️ Caption</p>
+            <p className="section-card-title">
+              ✏️ caption this meme bestie
+            </p>
             <div className="text-input-group">
               <label className="input-label">
-                Top Text
+                top text (all caps automatically)
                 <input
                   type="text"
                   className="meme-input"
                   value={topText}
-                  placeholder="Type top text here..."
+                  placeholder="type ur top text here fr..."
                   onChange={e => setTopText(e.target.value)}
                 />
               </label>
               <label className="input-label">
-                Bottom Text
+                bottom text (the punchline bestie)
                 <input
                   type="text"
                   className="meme-input"
                   value={bottomText}
-                  placeholder="Type bottom text here..."
+                  placeholder="type ur bottom text here..."
                   onChange={e => setBottomText(e.target.value)}
                 />
               </label>
@@ -245,11 +322,11 @@ export default function MemeEditor({ template, onBack }) {
 
           {/* Style Section */}
           <div className="section-card">
-            <p className="section-card-title">🎨 Style</p>
+            <p className="section-card-title">🎨 make it aesthetic</p>
 
             {/* Font Picker */}
             <div className="font-picker">
-              <p className="font-picker-label">FONT STYLE</p>
+              <p className="font-picker-label">font style fr</p>
               <div className="font-options">
                 {FONTS.map(f => (
                   <button
@@ -268,7 +345,7 @@ export default function MemeEditor({ template, onBack }) {
             <div className="style-row" style={{ marginTop: '1rem' }}>
               <div className="slider-wrapper">
                 <div className="slider-label">
-                  <span>Text Size</span>
+                  <span>text size</span>
                   <span className="slider-value">{fontSize}px</span>
                 </div>
                 <input
@@ -280,7 +357,7 @@ export default function MemeEditor({ template, onBack }) {
                 />
               </div>
               <div className="color-wrapper">
-                <span className="color-label">Color</span>
+                <span className="color-label">color</span>
                 <input
                   type="color"
                   value={color}
@@ -289,14 +366,6 @@ export default function MemeEditor({ template, onBack }) {
               </div>
             </div>
           </div>
-
-          {/* Download */}
-          <button
-            className="download-btn"
-            onClick={handleDownload}
-          >
-            ⬇️ DOWNLOAD + SAVE MEME
-          </button>
 
         </div>
       </div>

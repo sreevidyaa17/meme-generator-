@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTemplates } from '../hooks/useTemplates.js'
 import TemplateCard from './TemplateCard.jsx'
+import { CATEGORIES, templateMatchesCategory } from '../utils/categories.js'
 
 function SkeletonGrid() {
   return (
@@ -23,22 +24,47 @@ export default function TemplateGallery({ onSelect, onTemplatesLoaded }) {
     loading,
     error,
     query,
-    setQuery
+    setQuery,
   } = useTemplates()
 
-  // Pass full template list up to App so R key works
+  const [activeCategory, setActiveCategory] = useState('all')
+
+  // Pass full list up to App for R key
   useEffect(() => {
     if (allTemplates.length > 0 && onTemplatesLoaded) {
       onTemplatesLoaded(allTemplates)
     }
   }, [allTemplates])
 
-  // Random button handler
+  // Random button
   const handleRandom = () => {
     if (!allTemplates.length) return
     const random = allTemplates[Math.floor(Math.random() * allTemplates.length)]
     onSelect(random)
   }
+
+  // Filter by category on top of search filter
+  const displayedTemplates = useMemo(() => {
+    if (activeCategory === 'all') return templates
+    return templates.filter(t =>
+      templateMatchesCategory(t.name, activeCategory)
+    )
+  }, [templates, activeCategory])
+
+  // Count how many templates per category
+  const categoryCounts = useMemo(() => {
+    const counts = {}
+    CATEGORIES.forEach(cat => {
+      if (cat.id === 'all') {
+        counts[cat.id] = allTemplates.length
+      } else {
+        counts[cat.id] = allTemplates.filter(t =>
+          templateMatchesCategory(t.name, cat.id)
+        ).length
+      }
+    })
+    return counts
+  }, [allTemplates])
 
   return (
     <div className="gallery">
@@ -49,13 +75,15 @@ export default function TemplateGallery({ onSelect, onTemplatesLoaded }) {
           <span className="search-icon">🔍</span>
           <input
             type="search"
-            placeholder="Search templates..."
+            placeholder="search for ur meme fr fr..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             className="search-input"
           />
           {!loading && (
-            <span className="search-count">{templates.length}</span>
+            <span className="search-count">
+              {displayedTemplates.length} found
+            </span>
           )}
         </div>
 
@@ -68,6 +96,24 @@ export default function TemplateGallery({ onSelect, onTemplatesLoaded }) {
           🎲 RANDOM
         </button>
       </div>
+
+      {/* Category filters */}
+      {!loading && !error && (
+        <div className="category-filters">
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat.id}
+              className={`category-btn ${activeCategory === cat.id ? 'category-btn--active' : ''}`}
+              onClick={() => setActiveCategory(cat.id)}
+            >
+              {cat.label}
+              <span className="category-count">
+                {categoryCounts[cat.id] || 0}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Keyboard shortcut hints */}
       <div className="shortcut-hint">
@@ -85,22 +131,22 @@ export default function TemplateGallery({ onSelect, onTemplatesLoaded }) {
       {error && (
         <div className="gallery-error">
           <p>😕</p>
-          <p>Failed to load templates</p>
+          <p>bruh. failed to load. not bussin fr</p>
           <p>{error}</p>
         </div>
       )}
 
-      {!loading && !error && templates.length === 0 && (
+      {!loading && !error && displayedTemplates.length === 0 && (
         <div className="gallery-empty">
           <p>🔍</p>
-          <p>No templates found</p>
-          <p>Try a different search term</p>
+          <p>no memes found bestie</p>
+          <p>try a different search or category fr</p>
         </div>
       )}
 
-      {!loading && !error && templates.length > 0 && (
+      {!loading && !error && displayedTemplates.length > 0 && (
         <div className="meme-grid">
-          {templates.map((t, i) => (
+          {displayedTemplates.map((t, i) => (
             <TemplateCard
               key={t.id}
               template={t}
